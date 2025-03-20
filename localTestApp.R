@@ -12,8 +12,8 @@ standardize_well_coords <- function(wells) {
 fileDir <- "Data\\Dania LMH PE and POCIS March 2025\\"
 layoutFile <- "96 well Array and Sample Layout -Danie PE Test.xlsx"
 
-fileDir <- "Data\\LMH-Wetlands 384 array 2024\\"
-layoutFile<-"Array and Sample Layout -Laura AOSR Wetland Dose Response Array.xlsx"
+#fileDir <- "Data\\LMH-Wetlands 384 array 2024\\"
+#layoutFile<-"Array and Sample Layout -Laura AOSR Wetland Dose Response Array.xlsx"
 
 
 # APP CODE ----
@@ -88,58 +88,44 @@ geneList <- longData %>%
 
 # QC SECTION ----
 
-# GDC
+# GDC Test
 
-gdc <- c("GDC", "FGF19")
+gdc <- c("FGF19", "GDC")
 gdcThresh <- 35
 
-gdcPass <- fullData %>%
-  select(all_of(gdc)) %>%
-  mutate(across(all_of(gdc), ~.x>gdcThresh | is.na(.x))) %>%
-  colSums()
-
-gdcFail <- fullData %>%
-  select(all_of(gdc)) %>%
-  mutate(across(all_of(gdc), ~ !(.x>gdcThresh | is.na(.x)))) %>%
-  colSums()
-
-gdcSums <- bind_rows(gdcPass, gdcFail)
-gdcResults <- data.frame(Result=c("Passed", "Failed"), gdcSums)
-
-
-# alternative GDC
-
 gdcTest<-fullData %>%
-  select(all_of(gdc)) %>%
-  mutate(across(all_of(gdc), ~.x>gdcThresh | is.na(.x) ))
-
-
-gdcTest2<-fullData %>%
   select(sample, all_of(gdc)) %>%
   mutate(across(all_of(gdc), 
     list(
-      PASS = ~.x>gdcThresh | is.na(.x)
+      TEST = ~.x>gdcThresh | is.na(.x)
     )
   )) %>%
   select(order(colnames(.))) %>%
   relocate(sample)
 
 
+#GDC Summary
 
+# Define pass columns
+test_columns <- names(gdcTest)[grepl("_TEST$", names(gdcTest))]
 
-  summarise(across(everything(), list(PASS = ~ sum(.), FAIL = ~ sum(!.)))) %>%
-  pivot_longer(everything(), names_to = c("Column", "Value"),
-               names_pattern = "(.*)_(.*)") %>%
-  pivot_wider(names_from = Column, values_from = value) %>%
-  mutate(Value = factor(Value, levels = c("PASS", "FAIL"))) %>%
-  arrange(Value) %>%
-  column_to_rownames("Value")
+# Initialize result data frame
+outcomes <- c(TRUE, FALSE)
+result <- data.frame(outcome = outcomes)
 
+# Loop through each pass column and add counts
+for(col in test_columns) {
+  counts <- table(gdcTest[[col]])
+  
+  # Make sure both TRUE and FALSE are represented
+  result[[col]] <- 0  # Initialize with zeros
+  
+  # Fill in actual counts where available
+  for(outcome in names(counts)) {
+    idx <- which(result$outcome == as.logical(outcome))
+    result[idx, col] <- counts[outcome]
+  }
+}
 
-count(gdcTest, across(gdc))
-
-
-gdc %>%
-  str_c("_PASS")
 
 

@@ -5,18 +5,20 @@ library(readxl)
 library(bslib)
 library(reactable)
 
-# FUNCTIONS ----
+# CONSTANTS AND FUNCTIONS ----
 # Remove leading zeros from single-digit well numbers
+failCol <- "#dc3815"
+failFont <- "bold"
+passCol <- "black"
+passFont <- "normal"
+
 standardize_well_coords <- function(wells) {
   gsub("([A-H])0([1-9])", "\\1\\2", wells)
 }
 
 gdc_style_fun <- function(.data, colname, thresh){
   function(value){
-    failCol <- "#dc3815"
-    failFont <- "bold"
-    passCol <- "black"
-    passFont <- "normal"
+    
     if(is.na(value)){
       color <- passCol
       fontWeight <- passFont
@@ -99,6 +101,7 @@ ui <- fluidPage(
               br(),br()
             )
           ),
+          # QC TAB 1.1: GDC ----
           fluidRow(
             column(
               3,
@@ -111,7 +114,9 @@ ui <- fluidPage(
             ),
             column(
               3,
-              h4("GDC Summary")
+              h4("GDC Summary"),
+              br(),
+              reactableOutput("gdcSummary")
             ),
             column(
               6,
@@ -120,6 +125,7 @@ ui <- fluidPage(
               reactableOutput("gdcTest")
             )
           ),
+          # QC TAB 1.2: RTC ----
           fluidRow(
             column(3,
               h4("Reverse Transcription Control (RTC)"),
@@ -131,6 +137,7 @@ ui <- fluidPage(
             ),
             column(9)
           ),
+          # QC TAB 1.3: PPC ----
           fluidRow(
             column(3,
               h4("PCR Positive Control (PPC)"),
@@ -315,12 +322,12 @@ server <- function(input, output, session){
         pageSizeOptions = c(10, 25, 50, 100)
       )
     )
-  # GENE LIST (vector) ----
-  geneList <- reactive({
-    longData() %>%
-      pull(gene) %>%
-      unique()
-  })
+    # GENE LIST (vector) ----
+    geneList <- reactive({
+      longData() %>%
+        pull(gene) %>%
+        unique()
+    })
   
   
   # QC WELLS ----
@@ -341,18 +348,81 @@ server <- function(input, output, session){
         select(order(colnames(.))) %>%
         relocate(sample)
     })
+    
+    #gdcSummary v2
+    
+    
+    gdcSummary <-reactive({
+      req(gdcTest())
+      
+      # Define pass columns
+      test_columns <- names(gdcTest())[grepl("_TEST$", names(gdcTest()))]
+      
+      # Initialize result data frame
+      outcomes <- c(TRUE, FALSE)
+      result <- data.frame(outcome = outcomes)
+      
+      # Loop through each pass column and add counts
+      for(col in test_columns) {
+        counts <- table(gdcTest()[[col]])
+        
+        # Make sure both TRUE and FALSE are represented
+        result[[col]] <- 0  # Initialize with zeros
+        
+        # Fill in actual counts where available
+        for(outcome in names(counts)) {
+          idx <- which(result$outcome == as.logical(outcome))
+          result[idx, col] <- counts[outcome]
+        }
+      }
+      return(result)
+    })
+    
+    
+    
+    
+    # gdcSummary <- reactive({
+    #   req(gdcTest())
+    #   
+    #   test_columns <- names(gdcTest())[grepl("_TEST$", names(gdcTest()))]
+    #   
+    #   gdcSummary <- gdcTest() %>%
+    #     select(all_of(test_columns)) %>%
+    #     mutate(across(all_of(test_columns), ~ ifelse(.x, "PASS", "FAIL"))) %>%
+    #     # Convert to long format
+    #     pivot_longer(cols = everything(), 
+    #                  names_to = "column", 
+    #                  values_to = "value") %>%
+    #     # Count occurrences
+    #     count(column, value) %>%
+    #     # remove "_TEST" from gene names
+    #     mutate(column = gsub("_TEST","",column)) %>%
+    #     # Reshape to wide format
+    #     pivot_wider(id_cols = value, 
+    #                 names_from = column,
+    #                 values_from = n) %>%
+    #     # Rename for clarity
+    #     rename(outcome = value) %>%
+    #     arrange(desc(outcome))
+    #   # Replace NA with 0 for any missing combinations
+    #   #gdcSummary[is.na(gdcSummary)] <- 0
+    # })
+    
+    
       
     # OUTPUT ----
     output$gdcTest <- renderReactable({
       req(gdcTest())
       
-      testCols <- input$gdc %>%
+      ctCols <- input$gdc
+      testCols <- ctCols %>%
         str_c("_TEST")
       
       formatCols <- c(input$gdc, testCols)
       
       toRender <- gdcTest() %>%
-        mutate(across(all_of(testCols), ~ ifelse(.x, "PASS", "FAIL")))
+        mutate(across(all_of(testCols), ~ ifelse(.x, "PASS", "FAIL"))) %>%
+        rename_with(~paste0(., "_Ct"), all_of(ctCols))
       
       col_defs <- lapply(
         formatCols, function(x){
@@ -383,6 +453,40 @@ server <- function(input, output, session){
         pageSizeOptions = c(10, 25, 50, 100)
       )
     })
+    
+    output$gdcSummary <- renderReactable({
+      req(gdcSummary())
+      toRender <- gdcSummary() %>%
+        #mutate(outcome = as.character(outcome)) %>%
+        mutate(outcome = case_when(
+          outcome == TRUE ~ "PASS",
+          outcome == FALSE ~ "FAIL"
+        ))
+      
+      names(toRender) <- str_replace(names(toRender), "_TEST", "")
+      
+      reactable(
+        toRender,
+        defaultColDef = colDef(
+          minWidth = 60,
+          align = "center"
+        ),
+        columns = list(
+          outcome = colDef(align="left")
+        ),
+        rowStyle = function(index) {
+          if (any(toRender[index, "outcome"] == "FAIL")) {
+            list(
+              background = "#f8e6e6",
+              color = failCol,
+              fontWeight = failFont
+            )
+          }
+        },
+        fullWidth = TRUE
+      )
+    })
+    
   
   # DYNAMIC UI ----
   
@@ -413,15 +517,7 @@ server <- function(input, output, session){
   })
   
   
-  # Upload Tab: "Proceed to QC" Button
-  #observeEvent(input$toQC, )
   
-  
-  
-  # OUTPUTS ----
-  
-  
-
 }
 
 # RUN APP ----
