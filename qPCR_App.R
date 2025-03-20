@@ -48,7 +48,37 @@ gdc_style_fun <- function(.data, colname, thresh){
   }
 }
 
-
+rtc_ppc_style_fun <- function(.data, colname, thresh){
+  function(value){
+    
+    if(is.na(value)){
+      color <- failCol
+      fontWeight <- failFont
+    } else if (is.numeric(value)) {
+      if(value<=thresh){
+        color <- passCol
+        fontWeight <- failFont
+      }else{
+        color <- failCol
+        fontWeight <- failFont
+      }
+    } else if (is.character(value)) {
+      if(value=="FAIL"){
+        color <- failCol
+        fontWeight <- failFont
+      }else{
+        color <- passCol
+        fontWeight <- passFont
+      }
+    } else {
+      color <- passCol
+      fontWeight <- passFont
+    }
+    return(
+      list(color=color, fontWeight=fontWeight)
+    )
+  }
+}
 
 
 # UI ----
@@ -110,6 +140,7 @@ ui <- fluidPage(
               br(),br(),
               selectInput("gdc", label="Select GDC Well(s)", choices = NULL, multiple = TRUE),
               sliderInput("gdcThresh", "Select GDC threshold", min=1, max=40, value=35),
+              br(),
               br()
             ),
             column(
@@ -122,7 +153,8 @@ ui <- fluidPage(
               6,
               h4("GDC Results:"),
               br(),
-              reactableOutput("gdcTest")
+              reactableOutput("gdcTest"),
+              br()
             )
           ),
           # QC TAB 1.2: RTC ----
@@ -132,10 +164,21 @@ ui <- fluidPage(
               "RTCs check for if the RT reaction was successful for your sample. They should have good amplification",
               br(),br(),
               selectInput("rtc", "Select RTC Well(s)", choices = NULL, multiple = TRUE),
-              sliderInput("rtcThresh", "Select RTC threshold", min=1, max=40, value=15),
+              sliderInput("rtcThresh", "Select RTC threshold", min=1, max=40, value=30),
               br()
             ),
-            column(9)
+            column(
+              3,
+              h4("RTC Summary"),
+              br(),
+              reactableOutput("rtcSummary")
+            ),
+            column(
+              6,
+              h4("RTC Results:"),
+              br(),
+              reactableOutput("rtcTest")
+            )
           ),
           # QC TAB 1.3: PPC ----
           fluidRow(
@@ -144,10 +187,21 @@ ui <- fluidPage(
               "PPCs check if your PCR mastermix works correctly. They should have good amplification",
               br(),br(),
               selectInput("ppc", "Select PPC Well(s)", choices = NULL, multiple = TRUE),
-              sliderInput("ppcThresh", "Select PPC threshold", min=1, max=40, value=15),
+              sliderInput("ppcThresh", "Select PPC threshold", min=1, max=40, value=30),
               br()
             ),
-            column(9)
+            column(
+              3,
+              h4("PPC Summary"),
+              br(),
+              reactableOutput("ppcSummary")
+            ),
+            column(
+              6,
+              h4("PPC Results:"),
+              br(),
+              reactableOutput("ppcTest")
+            )
           )
         ),
         # QC Tab 2: Samples ----
@@ -223,7 +277,7 @@ ui <- fluidPage(
 
 # SERVER ----
 server <- function(input, output, session){
-  # IMPORT FILES AND CREATE DATA TABLE ----
+  # TAB1: IMPORT FILES AND CREATE DATA TABLE ----
     # COMPUTE ----
     longData <- reactive({
       req(input$layoutFile, input$qPCRFiles)
@@ -330,8 +384,10 @@ server <- function(input, output, session){
     })
   
   
-  # QC WELLS ----
+  # TAB 2.1: QC WELLS ----
     # COMPUTE ----
+    
+    # GDC Test
     gdcTest <- reactive({
       req(input$gdc, input$gdcThresh)
       
@@ -349,9 +405,7 @@ server <- function(input, output, session){
         relocate(sample)
     })
     
-    #gdcSummary v2
-    
-    
+    # GDC Summary
     gdcSummary <-reactive({
       req(gdcTest())
       
@@ -378,39 +432,99 @@ server <- function(input, output, session){
       return(result)
     })
     
-    
-    
-    
-    # gdcSummary <- reactive({
-    #   req(gdcTest())
-    #   
-    #   test_columns <- names(gdcTest())[grepl("_TEST$", names(gdcTest()))]
-    #   
-    #   gdcSummary <- gdcTest() %>%
-    #     select(all_of(test_columns)) %>%
-    #     mutate(across(all_of(test_columns), ~ ifelse(.x, "PASS", "FAIL"))) %>%
-    #     # Convert to long format
-    #     pivot_longer(cols = everything(), 
-    #                  names_to = "column", 
-    #                  values_to = "value") %>%
-    #     # Count occurrences
-    #     count(column, value) %>%
-    #     # remove "_TEST" from gene names
-    #     mutate(column = gsub("_TEST","",column)) %>%
-    #     # Reshape to wide format
-    #     pivot_wider(id_cols = value, 
-    #                 names_from = column,
-    #                 values_from = n) %>%
-    #     # Rename for clarity
-    #     rename(outcome = value) %>%
-    #     arrange(desc(outcome))
-    #   # Replace NA with 0 for any missing combinations
-    #   #gdcSummary[is.na(gdcSummary)] <- 0
-    # })
-    
-    
+    # RTC test
+    rtcTest <- reactive({
+      req(input$rtc, input$rtcThresh)
       
+      rtc <- input$rtc
+      rtcThresh <- input$rtcThresh
+      
+      fullData() %>%
+        select(sample, all_of(rtc)) %>%
+        mutate(across(all_of(rtc), 
+                      list(
+                        TEST = ~.x<rtcThresh & !is.na(.x)
+                      )
+        )) %>%
+        select(order(colnames(.))) %>%
+        relocate(sample)
+    })
+    
+    # RTC Summary
+    rtcSummary <-reactive({
+      req(rtcTest())
+      
+      # Define pass columns
+      test_columns <- names(rtcTest())[grepl("_TEST$", names(rtcTest()))]
+      
+      # Initialize result data frame
+      outcomes <- c(TRUE, FALSE)
+      result <- data.frame(outcome = outcomes)
+      
+      # Loop through each pass column and add counts
+      for(col in test_columns) {
+        counts <- table(rtcTest()[[col]])
+        
+        # Make sure both TRUE and FALSE are represented
+        result[[col]] <- 0  # Initialize with zeros
+        
+        # Fill in actual counts where available
+        for(outcome in names(counts)) {
+          idx <- which(result$outcome == as.logical(outcome))
+          result[idx, col] <- counts[outcome]
+        }
+      }
+      return(result)
+    })
+    
+    # PPC test
+    ppcTest <- reactive({
+      req(input$ppc, input$ppcThresh)
+      
+      ppc <- input$ppc
+      ppcThresh <- input$ppcThresh
+      
+      fullData() %>%
+        select(sample, all_of(ppc)) %>%
+        mutate(across(all_of(ppc), 
+                      list(
+                        TEST = ~.x<ppcThresh & !is.na(.x)
+                      )
+        )) %>%
+        select(order(colnames(.))) %>%
+        relocate(sample)
+    })
+    
+    # PPC Summary
+    ppcSummary <-reactive({
+      req(ppcTest())
+      
+      # Define pass columns
+      test_columns <- names(ppcTest())[grepl("_TEST$", names(ppcTest()))]
+      
+      # Initialize result data frame
+      outcomes <- c(TRUE, FALSE)
+      result <- data.frame(outcome = outcomes)
+      
+      # Loop through each pass column and add counts
+      for(col in test_columns) {
+        counts <- table(ppcTest()[[col]])
+        
+        # Make sure both TRUE and FALSE are represented
+        result[[col]] <- 0  # Initialize with zeros
+        
+        # Fill in actual counts where available
+        for(outcome in names(counts)) {
+          idx <- which(result$outcome == as.logical(outcome))
+          result[idx, col] <- counts[outcome]
+        }
+      }
+      return(result)
+    })
+    
     # OUTPUT ----
+    
+    # GDC Test
     output$gdcTest <- renderReactable({
       req(gdcTest())
       
@@ -454,9 +568,166 @@ server <- function(input, output, session){
       )
     })
     
+    #GDC Summary
     output$gdcSummary <- renderReactable({
       req(gdcSummary())
       toRender <- gdcSummary() %>%
+        #mutate(outcome = as.character(outcome)) %>%
+        mutate(outcome = case_when(
+          outcome == TRUE ~ "PASS",
+          outcome == FALSE ~ "FAIL"
+        ))
+      
+      names(toRender) <- str_replace(names(toRender), "_TEST", "")
+      
+      reactable(
+        toRender,
+        defaultColDef = colDef(
+          minWidth = 60,
+          align = "center"
+        ),
+        columns = list(
+          outcome = colDef(align="left")
+        ),
+        rowStyle = function(index) {
+          if (any(toRender[index, "outcome"] == "FAIL")) {
+            list(
+              background = "#f8e6e6",
+              color = failCol,
+              fontWeight = failFont
+            )
+          }
+        },
+        fullWidth = TRUE
+      )
+    })
+    
+    # RTC Test
+    output$rtcTest <- renderReactable({
+      req(rtcTest())
+      
+      ctCols <- input$rtc
+      testCols <- ctCols %>%
+        str_c("_TEST")
+      
+      formatCols <- c(input$rtc, testCols)
+      
+      toRender <- rtcTest() %>%
+        mutate(across(all_of(testCols), ~ ifelse(.x, "PASS", "FAIL"))) %>%
+        rename_with(~paste0(., "_Ct"), all_of(ctCols))
+      
+      col_defs <- lapply(
+        formatCols, function(x){
+          colDef(
+            style =rtc_ppc_style_fun(toRender, x, input$rtcThresh)
+          )
+        }
+      )
+      names(col_defs) <- formatCols
+      
+      col_defs[["sample"]] <- colDef(minWidth = 100, align="left")
+      
+      reactable(
+        toRender,
+        defaultColDef = colDef(
+          na="no Ct",
+          minWidth = 85,
+          align = "center"
+        ),
+        columns = col_defs,
+        rowStyle = function(index) {
+          if (any(toRender[index, testCols] == "FAIL")) {
+            list(background = "#f8e6e6")
+          }
+        },
+        fullWidth = TRUE,
+        showPageSizeOptions = TRUE,
+        pageSizeOptions = c(10, 25, 50, 100)
+      )
+    })
+    
+    #RTC Summary
+    output$rtcSummary <- renderReactable({
+      req(rtcSummary())
+      toRender <- rtcSummary() %>%
+        #mutate(outcome = as.character(outcome)) %>%
+        mutate(outcome = case_when(
+          outcome == TRUE ~ "PASS",
+          outcome == FALSE ~ "FAIL"
+        ))
+      
+      names(toRender) <- str_replace(names(toRender), "_TEST", "")
+      
+      reactable(
+        toRender,
+        defaultColDef = colDef(
+          minWidth = 60,
+          align = "center"
+        ),
+        columns = list(
+          outcome = colDef(align="left")
+        ),
+        rowStyle = function(index) {
+          if (any(toRender[index, "outcome"] == "FAIL")) {
+            list(
+              background = "#f8e6e6",
+              color = failCol,
+              fontWeight = failFont
+            )
+          }
+        },
+        fullWidth = TRUE
+      )
+    })
+    
+    # PPC Test
+    output$ppcTest <- renderReactable({
+      req(ppcTest())
+      
+      ctCols <- input$ppc
+      testCols <- ctCols %>%
+        str_c("_TEST")
+      
+      formatCols <- c(input$ppc, testCols)
+      
+      toRender <- ppcTest() %>%
+        mutate(across(all_of(testCols), ~ ifelse(.x, "PASS", "FAIL"))) %>%
+        rename_with(~paste0(., "_Ct"), all_of(ctCols))
+      
+      col_defs <- lapply(
+        formatCols, function(x){
+          colDef(
+            style =rtc_ppc_style_fun(toRender, x, input$ppcThresh)
+          )
+        }
+      )
+      names(col_defs) <- formatCols
+      
+      col_defs[["sample"]] <- colDef(minWidth = 100, align="left")
+      
+      reactable(
+        toRender,
+        defaultColDef = colDef(
+          na="no Ct",
+          minWidth = 85,
+          align = "center"
+        ),
+        columns = col_defs,
+        rowStyle = function(index) {
+          if (any(toRender[index, testCols] == "FAIL")) {
+            list(background = "#f8e6e6")
+          }
+        },
+        fullWidth = TRUE,
+        showPageSizeOptions = TRUE,
+        pageSizeOptions = c(10, 25, 50, 100)
+      )
+    })
+    
+    #PPC Summary
+    output$ppcSummary <- renderReactable({
+      req(ppcSummary())
+      toRender <- ppcSummary() %>%
         #mutate(outcome = as.character(outcome)) %>%
         mutate(outcome = case_when(
           outcome == TRUE ~ "PASS",

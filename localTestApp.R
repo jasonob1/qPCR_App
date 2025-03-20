@@ -104,6 +104,23 @@ gdcTest<-fullData %>%
   relocate(sample)
 
 
+
+# RTC Test
+
+rtc <- c("FGF19", "RTC")
+rtcThresh <- 30
+
+rtcTest<-fullData %>%
+  select(sample, all_of(rtc)) %>%
+  mutate(across(all_of(rtc), 
+                list(
+                  TEST = ~.x<rtcThresh & !is.na(.x)
+                )
+  )) %>%
+  select(order(colnames(.))) %>%
+  relocate(sample)
+
+
 #GDC Summary
 
 # Define pass columns
