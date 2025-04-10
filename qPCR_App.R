@@ -5,13 +5,25 @@ library(readxl)
 library(bslib)
 library(reactable)
 
-# CONSTANTS AND FUNCTIONS ----
-# Remove leading zeros from single-digit well numbers
+# CONSTANTS AND LISTS ----
 failCol <- "#dc3815"
 failFont <- "bold"
 passCol <- "black"
 passFont <- "normal"
 
+replaceCtChoices <- c(
+  "replace with value",
+  "replace with group average",
+  "replace from random value from group distribution",
+  "replace with dataset average",
+  "replace from random value from dataset distribution",
+  "ignore"
+)
+
+
+# FUNCTIONS ----
+
+# Standardize to Remove leading zeros from single-digit well numbers
 standardize_well_coords <- function(wells) {
   gsub("([A-H])0([1-9])", "\\1\\2", wells)
 }
@@ -57,7 +69,39 @@ rtc_ppc_style_fun <- function(.data, colname, thresh){
     } else if (is.numeric(value)) {
       if(value<=thresh){
         color <- passCol
+        fontWeight <- passFont
+      }else{
+        color <- failCol
         fontWeight <- failFont
+      }
+    } else if (is.character(value)) {
+      if(value=="FAIL"){
+        color <- failCol
+        fontWeight <- failFont
+      }else{
+        color <- passCol
+        fontWeight <- passFont
+      }
+    } else {
+      color <- passCol
+      fontWeight <- passFont
+    }
+    return(
+      list(color=color, fontWeight=fontWeight)
+    )
+  }
+}
+
+ntc_style_fun <- function(.data, colname, thresh){
+  function(value){
+    
+    if(is.na(value)){
+      color <- passCol
+      fontWeight <- passFont
+    } else if (is.numeric(value)) {
+      if(value<thresh){
+        color <- passCol
+        fontWeight <- passFont
       }else{
         color <- failCol
         fontWeight <- failFont
@@ -99,7 +143,15 @@ ui <- fluidPage(
         br(),
         fluidRow(
           fileInput("layoutFile", "Upload Layout File", buttonLabel = "Upload"),
-          fileInput("qPCRFiles", "Upload qPCR Data Files", buttonLabel = "Upload", multiple=TRUE),
+          fileInput("qPCRFiles", "Upload qPCR Data Files", buttonLabel = "Upload", multiple=TRUE)
+        ),
+        fluidRow(
+          h3("Filter Your Data"),
+          br(),
+          selectInput("sampleFilter", label="Select Samples to Remove", choices = NULL, multiple = TRUE),
+          selectInput("geneFilter", label="Select Genes to Remove", choices = NULL, multiple = TRUE),
+          br(),
+          br()
         ),
         fluidRow(
           br(),
@@ -110,7 +162,7 @@ ui <- fluidPage(
         10,
         h3("Data Preview:"),
         br(),
-        reactableOutput("fullData")
+        reactableOutput("filterData")
       )
     ),
     
@@ -120,7 +172,7 @@ ui <- fluidPage(
       br(),
       tabsetPanel(
         id = "qcTab",
-        # QC Tab 1: Wells ----
+        # QC TAB 1: Wells ----
         tabPanel(
           "QC Wells",
           fluidRow(
@@ -131,7 +183,7 @@ ui <- fluidPage(
               br(),br()
             )
           ),
-          # QC TAB 1.1: GDC ----
+          # QC Tab 1.1: GDC ----
           fluidRow(
             column(
               3,
@@ -157,7 +209,7 @@ ui <- fluidPage(
               br()
             )
           ),
-          # QC TAB 1.2: RTC ----
+          # QC Tab 1.2: RTC ----
           fluidRow(
             column(3,
               h4("Reverse Transcription Control (RTC)"),
@@ -180,7 +232,7 @@ ui <- fluidPage(
               reactableOutput("rtcTest")
             )
           ),
-          # QC TAB 1.3: PPC ----
+          # QC Tab 1.3: PPC ----
           fluidRow(
             column(3,
               h4("PCR Positive Control (PPC)"),
@@ -202,46 +254,132 @@ ui <- fluidPage(
               br(),
               reactableOutput("ppcTest")
             )
+          ),
+          # "to QC Samples" Button
+          fluidRow(
+            column(
+              12,
+              br(),
+              actionButton("toQCsamp", "Proceed to QC Samples", class= "btn-success", disabled = FALSE),
+              br(),br()
+            )
           )
         ),
-        # QC Tab 2: Samples ----
+        # QC TAB 2: Samples ----
         tabPanel(
           "QC Samples",
           fluidRow(
             column(
-              3,
-              h3("Select Control Samples"),
-              br(),
-              selectInput("rtc", "Reverse Transcription Control", choices = NULL, multiple = TRUE),
-              br(),
-              selectInput("ppc", "PCR Postive Control", choices = NULL, multiple = TRUE),
-              br(),
-              selectInput("ntc", "No Template Control", choices = NULL, multiple = TRUE),
-              br()
-            ),
-            column(9)
-          )
-        ),
-        # QC Tab 3: High/Low ----
-        tabPanel(
-          "Low or High Ct Genes",
+              12,
+              h3("Quality Control Samples"),
+              "Control Samples are evaluated across every gene and WILL NOT not be include in the final analysis",
+              br(),br()
+            )
+          ),
+          # QC Tab 2.1: NTC ----
           fluidRow(
             column(
               3,
-              h3("Ct Thresholds"),
+              h4("No Template Controls (NTC)"),
+              "No template controls are full samples that check for amplification across all genes. They do not include RNA in the reverse transcription reaction, so they should not have amplification for any gene",
+              br(),br(),
+              selectInput("ntc", "Select NTC Samples", choices = NULL, multiple = TRUE),
+              sliderInput("ntcThresh", "Select NTC threshold", min=1, max=40, value=35),
+              br()
+            ),
+            column(
+              3,
+              h4("NTC Summary"),
+              br(),
+              reactableOutput("ntcSummary")
+            ),
+            column(
+              6,
+              h4("NTC Results:"),
+              br(),
+              reactableOutput("ntcTest"),
+              br()
+            )
+          ),
+          fluidRow(
+            column(
+              12,
+              br(),
+              actionButton("toLowHigh", "Proceed to Low/High Ct Check", class= "btn-success", disabled = FALSE),
+              br(),br()
+            )
+          )
+        ),
+        # QC Tab 3: Low/High Ct ----
+        tabPanel(
+          "Low or High Ct Check",
+          fluidRow(
+            column(
+              12,
+              h3("Low and High Ct Check"),
+              "Check for Genes or Samples with a high proportion of high or low Cts",
+              br(),br()  
+            )
+          ),
+          fluidRow(
+            column(
+              3,
+              h4("Ct Thresholds"),
               br(),
               sliderInput("lowCt", "select low Ct threshold", min=1, max=40, value=15),
               br(),
-              sliderInput("highCt", "select high Ct threshold", min=1, max=40, value=35),
+              sliderInput("highCt", "select high Ct threshold", min=1, max=40, value=15),
+              br(),
+              sliderInput("lowHighPerc", "select percent of samples threshold", min=0, max=100, value=50),
+              "How many samples must be outside the cutoffs for a gene to fail the test?",
+              br(),br(),br(),
+              h4("Replace High Ct and No Ct Options"),
+              br(),
+              radioButtons(
+                "replaceHighCt",
+                "What would you like to do with any remaining high Ct (above threshold) values?",
+                choices = replaceCtChoices,
+                selected = "ignore"
+              ),
+              actionButton("replaceHighButton", "Apply replacement to High Ct values", class= "btn-success"),
+              br(),br(),br(),
+              radioButtons(
+                "replaceNoCt",
+                "What would you like to do with any remaining No Ct (i.e. missing) values?",
+                choices = replaceCtChoices,
+                selected = "replace from random value from dataset distribution"
+              ),
+              actionButton("replaceNoCtButton", "Apply replacement to No Ct values", class= "btn-success"),
+              br(),br(),br(),
+              numericInput(
+                "replaceCtvalue",
+                "Replacement value (only for 'replace with value' option)",
+                value=35
+              ),
               br()
             ),
-            column(9)
+            column(
+              3,
+              h4("Low or High Ct Summary"),
+              br(),
+              reactableOutput("lowHighSummary")
+            ),
+            column(
+              6,
+              h4("Low or High Ct Results:"),
+              br(),
+              reactableOutput("lowHighTest"),
+              br()
+            )
+          ),
+          fluidRow(
+            
           )
         )
       )
     ),
     
-    # TAB 4: NORMALIZATION ----
+    # TAB 3: NORMALIZATION ----
     tabPanel(
       "Normalization",
       br(),
@@ -269,6 +407,8 @@ ui <- fluidPage(
     tabPanel("Visualization")
   )
 )
+
+
 
 
 
@@ -349,11 +489,38 @@ server <- function(input, output, session){
         select(-c(well,sampleSlot)) %>%
         pivot_wider(names_from = gene, values_from = Ct)
     })
-  
+    
+    # GENE LIST (vector) 
+    geneList <- reactive({
+      longData() %>%
+        pull(gene) %>%
+        unique()
+    })
+    
+    # SAMPLE LIST (vector)
+    sampleList <- reactive({
+      fullData() %>%
+        pull(sample)
+    })
+    
+    # FILTERED DATA
+    filterData <- reactive({
+      req(fullData())
+      
+      removeGenes <- input$geneFilter
+      removeSamples <- input$sampleFilter
+      
+      fullData() %>%
+        filter(!(sample%in%removeSamples)) %>%
+        select(-all_of(removeGenes))
+    })
+    
+    
+    
     # OUTPUT ----
-    output$fullData <- renderReactable(
+    output$filterData <- renderReactable(
       reactable(
-        fullData(),
+        filterData(),
         defaultColDef = colDef(
           style = function(value) { # to highlight NAs (No Ct) red
             if (is.na(value)) {
@@ -376,12 +543,7 @@ server <- function(input, output, session){
         pageSizeOptions = c(10, 25, 50, 100)
       )
     )
-    # GENE LIST (vector) ----
-    geneList <- reactive({
-      longData() %>%
-        pull(gene) %>%
-        unique()
-    })
+    
   
   
   # TAB 2.1: QC WELLS ----
@@ -394,7 +556,7 @@ server <- function(input, output, session){
       gdc <- input$gdc
       gdcThresh <- input$gdcThresh
       
-      fullData() %>%
+      filterData() %>%
         select(sample, all_of(gdc)) %>%
         mutate(across(all_of(gdc), 
                       list(
@@ -439,7 +601,7 @@ server <- function(input, output, session){
       rtc <- input$rtc
       rtcThresh <- input$rtcThresh
       
-      fullData() %>%
+      filterData() %>%
         select(sample, all_of(rtc)) %>%
         mutate(across(all_of(rtc), 
                       list(
@@ -484,7 +646,7 @@ server <- function(input, output, session){
       ppc <- input$ppc
       ppcThresh <- input$ppcThresh
       
-      fullData() %>%
+      filterData() %>%
         select(sample, all_of(ppc)) %>%
         mutate(across(all_of(ppc), 
                       list(
@@ -522,6 +684,7 @@ server <- function(input, output, session){
       return(result)
     })
     
+    
     # OUTPUT ----
     
     # GDC Test
@@ -532,11 +695,14 @@ server <- function(input, output, session){
       testCols <- ctCols %>%
         str_c("_TEST")
       
-      formatCols <- c(input$gdc, testCols)
-      
       toRender <- gdcTest() %>%
         mutate(across(all_of(testCols), ~ ifelse(.x, "PASS", "FAIL"))) %>%
         rename_with(~paste0(., "_Ct"), all_of(ctCols))
+      
+      formatCols <- c(
+        str_c(ctCols, "_Ct"),
+        testCols
+      )
       
       col_defs <- lapply(
         formatCols, function(x){
@@ -568,7 +734,7 @@ server <- function(input, output, session){
       )
     })
     
-    #GDC Summary
+    # GDC Summary
     output$gdcSummary <- renderReactable({
       req(gdcSummary())
       toRender <- gdcSummary() %>%
@@ -610,11 +776,14 @@ server <- function(input, output, session){
       testCols <- ctCols %>%
         str_c("_TEST")
       
-      formatCols <- c(input$rtc, testCols)
-      
       toRender <- rtcTest() %>%
         mutate(across(all_of(testCols), ~ ifelse(.x, "PASS", "FAIL"))) %>%
         rename_with(~paste0(., "_Ct"), all_of(ctCols))
+      
+      formatCols <- c(
+        str_c(input$rtc, "_Ct"),
+        testCols
+      )
       
       col_defs <- lapply(
         formatCols, function(x){
@@ -688,11 +857,14 @@ server <- function(input, output, session){
       testCols <- ctCols %>%
         str_c("_TEST")
       
-      formatCols <- c(input$ppc, testCols)
-      
       toRender <- ppcTest() %>%
         mutate(across(all_of(testCols), ~ ifelse(.x, "PASS", "FAIL"))) %>%
         rename_with(~paste0(., "_Ct"), all_of(ctCols))
+      
+      formatCols <- c(
+        str_c(input$ppc, "_Ct"),
+        testCols
+      )
       
       col_defs <- lapply(
         formatCols, function(x){
@@ -759,34 +931,160 @@ server <- function(input, output, session){
     })
     
   
+  
+  # TAB 2.2: QC SAMPLES/NTC ----
+    # COMPUTE ----
+    
+    # NTC Test
+    ntcTest <- reactive({
+      req(input$ntc, input$ntcThresh)
+      
+      ntc <- input$ntc
+      ntcThresh <- input$ntcThresh
+      
+      GOIs <- names(filterData())[names(filterData())%in%geneList()]
+      
+      filterData() %>%
+        select(sample, all_of(GOIs)) %>%
+        filter(sample%in%ntc) %>%
+        mutate(across(all_of(GOIs), 
+                      list(
+                        TEST = ~.x>ntcThresh | is.na(.x)
+                      )
+        )) %>%
+        select(order(colnames(.))) %>%
+        relocate(sample)
+    })
+    
+    # NTC Summary
+    ntcSummary <-reactive({
+      req(ntcTest())
+      
+      testTable<-ntcTest()
+      
+      # Define pass columns
+      test_columns <- names(testTable)[grepl("_TEST$", names(testTable))]
+      
+      # Initialize result data frame
+      result <- data.frame(sample=testTable$sample, PassedGenes=NA, FailedGenes=NA)
+      
+      # Fill Table
+      for(i in 1:nrow(result)){
+        result$PassedGenes[i] <- testTable %>%
+          filter(sample==result$sample[i]) %>%
+          select(all_of(test_columns)) %>%
+          rowSums()
+        result$FailedGenes[i] <- length(test_columns) - result$PassedGenes[i]
+      }
+      
+      return(result)
+    })
+    
+    
+    
+    
+    # OUTPUT ----
+    
+    # NTC Test
+    output$ntcTest <- renderReactable({
+      req(ntcTest())
+      
+      testTable <- ntcTest()
+      
+      ctCols <- names(testTable)[names(testTable)%in%geneList()]
+      testCols <- ctCols %>%
+        str_c("_TEST")
+      
+      toRender <- testTable %>%
+        mutate(across(all_of(testCols), ~ ifelse(.x, "PASS", "FAIL"))) %>%
+        rename_with(~paste0(., "_Ct"), all_of(ctCols))
+      
+      formatCols <- c(
+        str_c(ctCols, "_Ct"),
+        testCols
+      )
+      
+      col_defs <- lapply(
+        formatCols, function(x){
+          colDef(
+            style =gdc_style_fun(toRender, x, input$ntcThresh)
+          )
+        }
+      )
+      names(col_defs) <- formatCols
+      
+      col_defs[["sample"]] <- colDef(minWidth = 100, align="left")
+      
+      reactable(
+        toRender,
+        defaultColDef = colDef(
+          na="no Ct",
+          minWidth = 85,
+          align = "center"
+        ),
+        columns = col_defs,
+        rowStyle = function(index) {
+          if (any(toRender[index, testCols] == "FAIL")) {
+            list(background = "#f8e6e6")
+          }
+        },
+        fullWidth = TRUE,
+        showPageSizeOptions = TRUE,
+        pageSizeOptions = c(10, 25, 50, 100)
+      )
+    })
+    
+    
+    output$ntcSummary <- renderReactable({
+      req(ntcSummary())
+      reactable(ntcSummary())
+    })
+  
+    
   # DYNAMIC UI ----
   
   # Activate "proceed" buttons
   observeEvent(
-    fullData(),{
+    filterData(),{
       updateActionButton(inputId = "toQC", disabled = FALSE)
     })
   
   # Tab navigation buttons
+  # UPLOAD TAB: to QC
   observeEvent(
     input$toQC, {
       updateTabsetPanel(inputId = "topTab", selected = "Quality Control")
   })
+  # QC WELLS TAB: to QC Sample
+  observeEvent(
+    input$toQCsamp, {
+      updateTabsetPanel(inputId = "qcTab", selected = "QC Samples")
+    })
+  # QC SAMPLE TAB: to High/Low Check
+  observeEvent(
+    input$toLowHigh, {
+      updateTabsetPanel(inputId = "qcTab", selected = "Low or High Ct Check")
+    })
   
-  # update QC selectInputs with geneList names
+  
+  
+  
+  # update selectInputs with geneList names
   observeEvent(geneList(),{
-    sampleChoice <- c("NOT USED", geneList())
-    updateSelectInput(inputId = "gdc", choices = sampleChoice)
-    updateSelectInput(inputId = "rtc", choices = sampleChoice) 
-    updateSelectInput(inputId = "ppc", choices = sampleChoice) 
+    geneChoice <- c(geneList())
+    updateSelectInput(inputId = "gdc", choices = geneChoice)
+    updateSelectInput(inputId = "rtc", choices = geneChoice) 
+    updateSelectInput(inputId = "ppc", choices = geneChoice)
+    updateSelectInput(inputId = "hkg", choices = geneChoice)
+    updateSelectInput(inputId = "geneFilter", choices = geneChoice)
   })
   
-  # update QC HKG selectInputs with geneList
-  observeEvent(geneList(),{
-    geneChoice <- c("NOT USED", geneList())
-    updateSelectInput(inputId = "hkg", choices = geneChoice) 
+  # update selectInputs with sampleList
+  observeEvent(sampleList(),{
+    sampleChoice <- c(sampleList())
+    updateSelectInput(inputId = "sampleFilter", choices = sampleChoice)
+    updateSelectInput(inputId = "ntc", choices = sampleChoice)
   })
-  
   
   
 }

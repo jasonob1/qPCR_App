@@ -145,4 +145,20 @@ for(col in test_columns) {
 }
 
 
+# HighLow Ct Test
+
+GOIs <- names(fullData)[names(fullData)%in%geneList]
+lowCt <- 15
+highCt <- 35
+
+
+fullData %>%
+  select(all_of(GOIs)) %>%
+  mutate(across(everything(), ~.x>lowCt|is.na(.x))) %>%
+  colSums()/nrow(fullData) *100
+
+
+
+
+
 
