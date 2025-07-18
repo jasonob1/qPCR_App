@@ -17,35 +17,69 @@ replaceCtChoices <- c(
   "ignore"
 )
 
-cleanNoCt<-function(dataSet, method, geneCols, group, ct=35){
+
+
+# cleanCt: function to replace No Ct or High Ct values. Can target No Cts or High Cts, and replace with 5 different methods:
+# Two possible targets: target = "NoCt" or "HighCt"
+# Five possible methods: method = any of the options in the "replaceCtChoices" list above
+
+cleanCt<-function(dataSet, target, method, geneCols, group, ct_thresh, ct_replace=35){
   if(method=="replace with value"){
     cleanData <- dataSet %>%
       mutate(across(
-          all_of(geneCols),
-          ~ifelse(is.na(.),ct,.)   # TO DO?: add a "target" argument to cleanNoCt, with options "NoCt" and "HighCt", then use "target" as a switch
-        ))
+        all_of(geneCols),
+        ~{
+          if(target=="NoCt"){
+            ifelse(is.na(.),ct_replace,.)
+          } else if(target == "HighCt"){
+            ifelse(.>ct_thresh & !is.na(.),ct_replace,.)
+          } else {
+            stop("invalid target")
+          }
+        }
+      ))
   }
   
   if(method=="replace with group average"){
     cleanData <- dataSet %>%
-      group_by(all_of(group)) %>%
+      group_by(across(all_of(group))) %>%
       mutate(across(
-          all_of(geneCols),
-          ~ifelse(is.na(.),mean(., na.rm=TRUE),.)
-        )) %>%
+        all_of(geneCols),
+        ~{
+          if(target=="NoCt"){
+            idx <- is.na(.)
+            .[idx] <- round(mean(., na.rm=TRUE),1)
+            .
+          } else if(target == "HighCt"){
+            idx <- .>ct_thresh & !is.na(.)
+            .[idx] <- round(mean(., na.rm=TRUE),1)
+            .
+          } else {
+            stop("invalid target")
+          }
+        }
+      )) %>%
       ungroup()
   }
   
   if(method=="replace from random value from group distribution"){
     cleanData <- dataSet %>%
-      group_by(all_of(group)) %>%
+      group_by(across(all_of(group))) %>%
       mutate(across(
         all_of(geneCols),
-        ~sapply(.,
-          FUN=function(x){
-            ifelse(is.na(x),rnorm(1, mean(., na.rm=TRUE),sd(., na.rm=TRUE)),x)
+        ~{
+          if (target == "NoCt") {
+            idx <- is.na(.)
+            .[idx] <- round(rnorm(sum(idx), mean(., na.rm=TRUE), sd(., na.rm=TRUE)),1)
+            .
+          } else if (target == "HighCt") {
+            idx <- . > ct_thresh & !is.na(.)
+            .[idx] <- round(rnorm(sum(idx), mean(., na.rm=TRUE), sd(., na.rm=TRUE)),1)
+            .
+          } else {
+            stop("invalid target")
           }
-        )
+        }
       )) %>%
       ungroup()
   }
@@ -54,7 +88,19 @@ cleanNoCt<-function(dataSet, method, geneCols, group, ct=35){
     cleanData <- dataSet %>%
       mutate(across(
         all_of(geneCols),
-        ~ifelse(is.na(.),mean(., na.rm=TRUE),.)
+        ~{
+          if (target == "NoCt") {
+            idx <- is.na(.)
+            .[idx] <- round(mean(., na.rm=TRUE),1)
+            .
+          } else if (target == "HighCt") {
+            idx <- . > ct_thresh & !is.na(.)
+            .[idx] <- round(mean(., na.rm=TRUE),1)
+            .
+          } else {
+            stop("invalid target")
+          }
+        }
       )) %>%
       ungroup()
   }
@@ -63,13 +109,20 @@ cleanNoCt<-function(dataSet, method, geneCols, group, ct=35){
     cleanData <- dataSet %>%
       mutate(across(
         all_of(geneCols),
-        ~sapply(.,
-          FUN=function(x){
-            ifelse(is.na(x),rnorm(1, mean(., na.rm=TRUE),sd(., na.rm=TRUE)),x)
+        ~{
+          if (target == "NoCt") {
+            idx <- is.na(.)
+            .[idx] <- round(rnorm(sum(idx), mean(., na.rm=TRUE), sd(., na.rm=TRUE)),1)
+            .
+          } else if (target == "HighCt") {
+            idx <- . > ct_thresh & !is.na(.)
+            .[idx] <- round(rnorm(sum(idx), mean(., na.rm=TRUE), sd(., na.rm=TRUE)),1)
+            .
+          } else {
+            stop("invalid target")
           }
-        )
-      )) %>%
-      ungroup()
+        }
+      )) 
   }
   
   if(method=="ignore"){

@@ -43,9 +43,9 @@ tabPanel_2_3_QC_lowHighCt_server <- function(input, output, session, shared){
           everything(),
           list(
             countLowCt = ~sum(.x == "lowCt"),
-            percentLowCt = ~round(mean(.x == "lowCt"),1) * 100,
+            percentLowCt = ~round(mean(.x == "lowCt")*100,1),
             countHighCt = ~sum(.x == "highCt"),
-            percentHighCt = ~round(mean(.x == "highCt"),1) * 100
+            percentHighCt = ~round(mean(.x == "highCt")*100,1)
           ),
           .names = "{.col}_{.fn}"
         )
@@ -55,7 +55,7 @@ tabPanel_2_3_QC_lowHighCt_server <- function(input, output, session, shared){
         names_to = c("gene", ".value"),
         names_sep = "_TEST_"
       ) %>%
-      filter(percentLowCt >= input$lowHighPerc | percentHighCt >= input$lowHighPerc)
+      filter(countLowCt > 0 | countHighCt > 0)
   })
   
   # lowHighCtGene Summary Text
@@ -111,8 +111,7 @@ tabPanel_2_3_QC_lowHighCt_server <- function(input, output, session, shared){
     )
   })
   
-  
-  ## NOTE ##: "Replace High Ct and No Ct Options" are computed in the "curatedData" server file
+  # NOTE: Ct replacement computations are done in the "CuratedData" server souce code
   
   
   # OUTPUT ----
@@ -139,7 +138,6 @@ tabPanel_2_3_QC_lowHighCt_server <- function(input, output, session, shared){
               
     )
   })
-  
   
   # lowHighCt Gene Summary
   output$lowHighCtGeneSummary <- renderReactable({
@@ -170,9 +168,6 @@ tabPanel_2_3_QC_lowHighCt_server <- function(input, output, session, shared){
   })
   
   
-  
-  
   # DYNAMIC UI
-  
   
 }

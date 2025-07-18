@@ -1,5 +1,6 @@
 tabPanel_2_4_QC_curatedData_server <- function(input, output, session, shared){
   # COMPUTE ----
+  
   shared$curatedData <- reactive({
     req(shared$filterData())
     
@@ -13,10 +14,29 @@ tabPanel_2_4_QC_curatedData_server <- function(input, output, session, shared){
     
     filteredData <- shared$filterData()
     
-    filteredData %>%
+    filteredData <- filteredData %>%
       select(-all_of(removeQCgenes)) %>%
       filter(!(sample%in%removeQCsamples))
     
+    geneCols <- names(filteredData)[names(filteredData)%in%shared$geneList()]
+    
+    filteredData %>%
+      cleanCt(
+        target = "NoCt",
+        method = input$replaceNoCt,
+        geneCols = geneCols,
+        group = c("chemical", "dose"), # HARD WIRED - update to be dynamic
+        ct_thresh = input$highCt,
+        ct_replace = input$replaceCtvalue
+      ) %>%
+      cleanCt(
+        target = "HighCt",
+        method = input$replaceHighCt,
+        geneCols = geneCols,
+        group = c("chemical", "dose"), # HARD WIRED - update to be dynamic
+        ct_thresh = input$highCt,
+        ct_replace = input$replaceCtvalue
+      )
   })
   
   # OUTPUT ----

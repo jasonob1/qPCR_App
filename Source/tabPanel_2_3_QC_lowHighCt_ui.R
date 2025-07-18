@@ -21,8 +21,16 @@ tabPanel_2_3_QC_lowHighCt_ui <- tabPanel(
       "How many samples must be outside the cutoffs for a gene to fail the test?",
       br(),br(),br(),
       
-      h4("Replace High Ct and No Ct Options"),
+      h4("Replace No Ct and High Ct Options"),
       br(),
+      
+      radioButtons(
+        "replaceNoCt",
+        "What would you like to do with any remaining No Ct (i.e. missing) values?",
+        choices = replaceCtChoices,
+        selected = "ignore"
+      ),
+      br(),br(),
       
       radioButtons(
         "replaceHighCt",
@@ -30,17 +38,7 @@ tabPanel_2_3_QC_lowHighCt_ui <- tabPanel(
         choices = replaceCtChoices,
         selected = "ignore"
       ),
-      actionButton("replaceHighButton", "Apply replacement to High Ct values", class= "btn-success"),
-      br(),br(),br(),
-      
-      radioButtons(
-        "replaceNoCt",
-        "What would you like to do with any remaining No Ct (i.e. missing) values?",
-        choices = replaceCtChoices,
-        selected = "replace from random value from dataset distribution"
-      ),
-      actionButton("replaceNoCtButton", "Apply replacement to No Ct values", class= "btn-success"),
-      br(),br(),br(),
+      br(),br(),
       
       numericInput(
         "replaceCtvalue",
