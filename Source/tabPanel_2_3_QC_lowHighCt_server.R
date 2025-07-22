@@ -118,21 +118,43 @@ tabPanel_2_3_QC_lowHighCt_server <- function(input, output, session, shared){
   
   # lowHighCt Test
   output$lowHighCtTest <- renderReactable({
-    req(shared$lowHighCtTest())
+    req(shared$lowHighCtTest(), shared$lowHighCtGeneSummary())
     
     testTable <- shared$lowHighCtTest()
     
+    ### TO DO: HIGHLIGHT FAILED COLUMNS (failCols) IN COL STYLE FUNCTION (or other means)?
+    # failCols <- shared$lowHighCtGeneSummary() %>%
+    #   filter(percentLowCt > input$lowHighPerc | percentHighCt > input$lowHighPerc) %>%
+    #   pull(sample) %>%
+    #   unlist()
+    # this doesnt work yet. But not urgent
+
     ctCols <- names(testTable)[names(testTable)%in%shared$geneList()]
     testCols <- ctCols %>%
       str_c("_TEST")
+    formatCols <-c(ctCols, testCols)
+    
+    col_defs <-lapply(
+      formatCols, function(x){
+        colDef(
+          style=lowHighCt_style_fun(
+            testTable,
+            x,
+            input$lowCt,
+            input$highCt)
+        )
+      }
+    )
+    names(col_defs) <- formatCols
     
     reactable(
       testTable,
       defaultColDef = colDef(
         na="no Ct",
-        minWidth = 85,
+        minWidth = 90,
         align="center"
       ),
+      columns = col_defs,
       showPageSizeOptions = TRUE,
       pageSizeOptions = c(10,25,50,100)
               
@@ -145,7 +167,25 @@ tabPanel_2_3_QC_lowHighCt_server <- function(input, output, session, shared){
     
     summaryTable <- shared$lowHighCtGeneSummary()
     
-    reactable(summaryTable)
+    reactable(summaryTable,
+      defaultColDef = colDef(
+        minWidth = 60,
+        align="center"
+      ),
+      columns = list(
+        gene = colDef(align="left")
+      ),
+      rowStyle = function(index){
+        if(any(summaryTable[index, "percentLowCt"] > input$lowHighPerc | summaryTable[index, "percentHighCt"] > input$lowHighPerc )){
+          list(
+            background = failBack,
+            color = failCol,
+            fontWeight = failFont
+          )
+        }
+      },
+      fullWidth = TRUE
+    )
   })
   
   #lowHighCt Gene Summary Text

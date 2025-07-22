@@ -178,7 +178,7 @@ tabPanel_2_1_QC_wells_server <- function(input, output, session, shared){
       columns = col_defs,
       rowStyle = function(index) {
         if (any(toRender[index, testCols] == "FAIL")) {
-          list(background = "#f8e6e6")
+          list(background = failBack)
         }
       },
       fullWidth = TRUE,
@@ -211,7 +211,7 @@ tabPanel_2_1_QC_wells_server <- function(input, output, session, shared){
       rowStyle = function(index) {
         if (any(toRender[index, "outcome"] == "FAIL")) {
           list(
-            background = "#f8e6e6",
+            background = failBack,
             color = failCol,
             fontWeight = failFont
           )
@@ -259,7 +259,7 @@ tabPanel_2_1_QC_wells_server <- function(input, output, session, shared){
       columns = col_defs,
       rowStyle = function(index) {
         if (any(toRender[index, testCols] == "FAIL")) {
-          list(background = "#f8e6e6")
+          list(background = failBack)
         }
       },
       fullWidth = TRUE,
@@ -292,7 +292,7 @@ tabPanel_2_1_QC_wells_server <- function(input, output, session, shared){
       rowStyle = function(index) {
         if (any(toRender[index, "outcome"] == "FAIL")) {
           list(
-            background = "#f8e6e6",
+            background = failBack,
             color = failCol,
             fontWeight = failFont
           )
@@ -340,7 +340,7 @@ tabPanel_2_1_QC_wells_server <- function(input, output, session, shared){
       columns = col_defs,
       rowStyle = function(index) {
         if (any(toRender[index, testCols] == "FAIL")) {
-          list(background = "#f8e6e6")
+          list(background = failBack)
         }
       },
       fullWidth = TRUE,
@@ -373,7 +373,7 @@ tabPanel_2_1_QC_wells_server <- function(input, output, session, shared){
       rowStyle = function(index) {
         if (any(toRender[index, "outcome"] == "FAIL")) {
           list(
-            background = "#f8e6e6",
+            background = failBack,
             color = failCol,
             fontWeight = failFont
           )
