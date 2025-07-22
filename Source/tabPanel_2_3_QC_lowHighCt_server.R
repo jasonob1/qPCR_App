@@ -122,11 +122,12 @@ tabPanel_2_3_QC_lowHighCt_server <- function(input, output, session, shared){
     
     testTable <- shared$lowHighCtTest()
     
-    failCols <- shared$lowHighCtGeneSummary() %>%
-      filter(percentLowCt > input$lowHighPerc | percentHighCt > input$lowHighPerc) %>%
-      pull(sample) %>%
-      unlist()
     ### TO DO: HIGHLIGHT FAILED COLUMNS (failCols) IN COL STYLE FUNCTION (or other means)?
+    # failCols <- shared$lowHighCtGeneSummary() %>%
+    #   filter(percentLowCt > input$lowHighPerc | percentHighCt > input$lowHighPerc) %>%
+    #   pull(sample) %>%
+    #   unlist()
+    # this doesnt work yet. But not urgent
 
     ctCols <- names(testTable)[names(testTable)%in%shared$geneList()]
     testCols <- ctCols %>%
