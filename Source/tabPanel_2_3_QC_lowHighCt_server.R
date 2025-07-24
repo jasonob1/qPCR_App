@@ -107,7 +107,7 @@ tabPanel_2_3_QC_lowHighCt_server <- function(input, output, session, shared){
     
     sumText <- if_else(testRows>0,
                        "Samples with a high precentage of poor Cts are shown below. Consider removing these samples from your analysis (on 'Upload Data' tab)",
-                       "All of your genes passed!"
+                       "All of your samples passed!"
     )
   })
   
