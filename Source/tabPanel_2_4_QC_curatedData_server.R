@@ -1,6 +1,7 @@
 tabPanel_2_4_QC_curatedData_server <- function(input, output, session, shared){
   # COMPUTE ----
   
+  # CURATED DATA
   shared$curatedData <- reactive({
     req(shared$filterData())
     
@@ -67,7 +68,45 @@ tabPanel_2_4_QC_curatedData_server <- function(input, output, session, shared){
   )
   
   
-  
   # DYNAMICS ----
+  
+  # DOWNLOAD RAW DATA WHEN AVAILABLE
+  observe({
+    if(!is.null(shared$fullData())){
+      output$downloadRawData <- downloadHandler(
+        filename = function(){
+          "rawData.tsv"
+        },
+        content = function(file){
+          write.table(shared$fullData(), file, sep="\t", row.names = FALSE)
+        }
+      )
+    } else {
+      output$downloadRawData <- NULL
+    }
+  })
+  
+  # DOWNLOAD CURATED DATA WHEN AVAILABLE
+  observe({
+    if(!is.null(shared$curatedData())){
+      output$downloadCuratedData <- downloadHandler(
+        filename = function(){
+          "curatedData.tsv"
+        },
+        content = function(file){
+          write.table(shared$curatedData(), file, sep="\t", row.names = FALSE)
+        }
+      )
+    } else {
+      output$downloadCuratedData <- NULL
+    }
+  })
+  
+  # To Normalization Button
+  observeEvent(
+    input$toNormalization, {
+      updateTabsetPanel(inputId = "topTab", selected = "Normalization")
+    })
+  
   
 }
