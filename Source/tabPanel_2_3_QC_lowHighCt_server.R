@@ -208,6 +208,12 @@ tabPanel_2_3_QC_lowHighCt_server <- function(input, output, session, shared){
   })
   
   
-  # DYNAMIC UI
+  # DYNAMIC UI ----
+  
+  # To CuratedData Button
+  observeEvent(
+    input$toCuratedData, {
+      updateTabsetPanel(inputId = "qcTab", selected = "Curated Data")
+    })
   
 }

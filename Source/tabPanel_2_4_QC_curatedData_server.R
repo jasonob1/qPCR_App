@@ -102,4 +102,11 @@ tabPanel_2_4_QC_curatedData_server <- function(input, output, session, shared){
     }
   })
   
+  # To Normalization Button
+  observeEvent(
+    input$toNormalization, {
+      updateTabsetPanel(inputId = "topTab", selected = "Normalization")
+    })
+  
+  
 }

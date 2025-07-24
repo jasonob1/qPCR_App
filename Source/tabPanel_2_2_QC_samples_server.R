@@ -109,8 +109,9 @@ tabPanel_2_2_QC_samples_server <- function(input, output, session, shared){
   
   # To High/Low Check Button
   observeEvent(
-    input$toLowHigh, {
+    input$toLowHigh,{
       updateTabsetPanel(inputId = "qcTab", selected = "Low or High Ct Check")
-    })
+    }
+  )
 
 }

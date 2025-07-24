@@ -16,10 +16,16 @@ tabPanel_2_4_QC_curatedData_ui <- tabPanel(
       br(),
       downloadButton("downloadRawData", "Download Raw Data"),
       br(),br(),
+      
       h4("Download Curated Data"),
       "Use the button below to download your curated data table, after all of the QC steps have been applied, as a tab-separated text file (.tsv). ",
       br(),
-      downloadButton("downloadCuratedData", "Download Curated Data")
+      downloadButton("downloadCuratedData", "Download Curated Data"),
+      br(),br(),
+      
+      actionButton("toNormalization", "Proceed to Normalization", class= "btn-success", disabled = FALSE),
+      br(),br()
+      
     ),
     column(
       10,

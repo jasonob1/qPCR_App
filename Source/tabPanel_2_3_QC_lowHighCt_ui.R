@@ -45,7 +45,10 @@ tabPanel_2_3_QC_lowHighCt_ui <- tabPanel(
         "Replacement value (only for 'replace with value' option)",
         value=35
       ),
-      br()
+      br(),br(),
+      
+      actionButton("toCuratedData", "View/Download Curated Data", class= "btn-success", disabled = FALSE),
+      br(),br()
     ),
     
     column(
