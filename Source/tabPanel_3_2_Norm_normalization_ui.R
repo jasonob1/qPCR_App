@@ -1,4 +1,4 @@
-tabPanel_3_1_Norm_normalization_ui <- tabPanel(
+tabPanel_3_2_Norm_normalization_ui <- tabPanel(
   "Normalization",
   fluidRow(
     column(

@@ -1,13 +1,6 @@
-# FUNCTIONS ----
+# LISTS ----
 
-# Standardize to Remove leading zeros from single-digit well numbers
-standardize_well_coords <- function(wells) {
-  gsub("([A-H])0([1-9])", "\\1\\2", wells)
-}
-
-
-
-# Replace Ct option list and function ----
+# Replace Ct option list
 replaceCtChoices <- c(
   "replace with value",
   "replace with group average",
@@ -17,7 +10,21 @@ replaceCtChoices <- c(
   "ignore"
 )
 
+# Housekeeping Gene ANOVA factor options
+# hard-coded for now
+# will eventually make this dynamic
+hkFactorChoices <- c(
+  "chemical",
+  "dose"
+)
 
+
+# FUNCTIONS ----
+
+# Standardize to Remove leading zeros from single-digit well numbers
+standardize_well_coords <- function(wells) {
+  gsub("([A-H])0([1-9])", "\\1\\2", wells)
+}
 
 # cleanCt: function to replace No Ct or High Ct values. Can target No Cts or High Cts, and replace with 5 different methods:
 # Two possible targets: target = "NoCt" or "HighCt"
@@ -131,3 +138,33 @@ cleanCt<-function(dataSet, target, method, geneCols, group, ct_thresh, ct_replac
   
   return(cleanData)
 }
+
+# hkTest(dataSet, hkNames, aovFactor): ANOVA test on house keeping genes
+hkTest<-function(dataSet, hkNames, aovFactor, with_interaction=FALSE){
+  if(with_interaction){
+    term_sep="*"
+  }else{
+    term_sep="+"
+  }
+  hk_res<-lapply(hkNames, FUN=function(hk_name){
+    form<-as.formula(paste0(hk_name,"~", paste0(aovFactor, collapse=term_sep)))
+    m<-lm(form, data=dataSet)
+    f<-summary(m)$fstatistic
+    p<-pf(f[1],f[2],f[3], lower.tail = FALSE )
+    attributes(p)<-NULL
+    names(p)<-"p_value"
+    p_var<-data.frame(p_value=summary(m)$coefficients[,4])
+    hk_ps<-list()
+    hk_ps[["AOV"]]<-p
+    hk_ps[["variable_specific"]]<-p_var
+    return(hk_ps)
+  })
+  names(hk_res)<-hkNames
+  return(hk_res)
+}
+
+
+
+
+
+

@@ -11,6 +11,8 @@ library(tidyverse)
 library(readxl)
 library(bslib)
 library(reactable)
+library(ggpubr)
+library(ggfortify)
 
 
 # Load Source Code ----
@@ -67,8 +69,15 @@ server <- function(input, output, session){
   # TAB 2.4: QC Curated Data ----
   tabPanel_2_4_QC_curatedData_server(input, output, session, shared)
   
-  # TAB 3.1: Normalization House Keeping Gnes
-  tabPanel_3_1_Norm_hkGenes_server
+  # TAB 3.1: Normalization House Keeping Genes ----
+  tabPanel_3_1_Norm_hkGenes_server(input, output, session, shared)
+  
+  # TAB 3.2: Normalization Normalization ----
+  tabPanel_3_2_Norm_normalization_server(input, output, session, shared)
+  
+  # TAB 3.3: Normalization NormData ----
+  tabPanel_3_3_Norm_normData_server(input, output, session, shared)
+  
   
   
   # DYANAMIC UI ----
