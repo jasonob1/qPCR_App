@@ -8,7 +8,6 @@ globalDynamics <- function(input, output, session, shared){
     updateSelectInput(inputId = "gdc", choices = geneChoice)
     updateSelectInput(inputId = "rtc", choices = geneChoice) 
     updateSelectInput(inputId = "ppc", choices = geneChoice)
-    updateSelectInput(inputId = "hkg", choices = geneChoice)
     updateSelectInput(inputId = "geneFilter", choices = geneChoice)
   })
   
