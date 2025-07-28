@@ -12,7 +12,11 @@ tabPanel_3_1_Norm_hkGenes_ui <- tabPanel(
         "Select the variable that defines the groups you'd like to compare using ANOVA",
         choices = hkFactorChoices,
         multiple = FALSE # for now only one-way ANOVA
-      )
+      ),
+      br(),br(),
+      
+      actionButton("toNormNorm", "Proceed to Data Normalization", class= "btn-success", disabled = FALSE),
+      br(),br()
     ),
     column(
       9,

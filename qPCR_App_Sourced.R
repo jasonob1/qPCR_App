@@ -3,6 +3,8 @@
 # update "samples summary" results to include all high/Low/NoCt counts, but highlight failed ones with higher percentages
 # update "samples summary text"
 
+# add logratio and sum trim options for TMM? Currently set to default values
+
 
 
 # Libraries ----
@@ -13,6 +15,7 @@ library(bslib)
 library(reactable)
 library(ggpubr)
 library(ggfortify)
+library(edgeR)
 
 
 # Load Source Code ----

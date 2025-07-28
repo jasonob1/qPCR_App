@@ -141,4 +141,12 @@ tabPanel_3_1_Norm_hkGenes_server <- function(input, output, session, shared){
     updateSelectInput(inputId = "hkg", choices = curGeneChoice)
   })
   
+  # To Normalization Button
+  observeEvent(
+    input$toNormNorm, {
+      updateTabsetPanel(inputId = "normTab", selected = "Normalization")
+    })
+  
+  
+  
 }
