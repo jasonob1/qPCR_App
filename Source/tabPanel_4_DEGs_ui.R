@@ -1,1 +1,1 @@
-tabPanel_4_DEGs_ui <- tabPanel("DEGs")
+tabPanel_4_DEGs_ui <- tabPanel("DEG analysis")

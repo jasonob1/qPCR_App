@@ -1,7 +1,10 @@
 # TO DO ----
 
-# replace Ct functions
-# format lowHighCt tables
+# update "samples summary" results to include all high/Low/NoCt counts, but highlight failed ones with higher percentages
+# update "samples summary text"
+
+# add logratio and sum trim options for TMM? Currently set to default values
+
 
 
 # Libraries ----
@@ -10,6 +13,9 @@ library(tidyverse)
 library(readxl)
 library(bslib)
 library(reactable)
+library(ggpubr)
+library(ggfortify)
+library(edgeR)
 
 
 # Load Source Code ----
@@ -34,7 +40,7 @@ ui <- fluidPage(
     tabPanel_2_QCsubset_ui, # tabPanel_2_QCsubset_ui.R
     
     # TAB 3: NORMALIZATION ----
-    tabPanel_3_Normalization_ui, # tabPanel_3_Normalization_ui.R
+    tabPanel_3_NormalizationSubset_ui, # tabPanel_3_NormalizationSubset_ui.R
     
     # TAB 4: DEGS ----
     tabPanel_4_DEGs_ui, # tabPanel_4_DEGs_ui.R
@@ -60,11 +66,22 @@ server <- function(input, output, session){
   # TAB 2.2: QC SAMPLES/NTC ----
   tabPanel_2_2_QC_samples_server(input, output, session, shared)
   
-  # TAB 2.3: low High Ct ----
+  # TAB 2.3: QC low High Ct ----
   tabPanel_2_3_QC_lowHighCt_server(input, output, session, shared)
   
-  # TAB 2.4: Curated Data ----
+  # TAB 2.4: QC Curated Data ----
   tabPanel_2_4_QC_curatedData_server(input, output, session, shared)
+  
+  # TAB 3.1: Normalization House Keeping Genes ----
+  tabPanel_3_1_Norm_hkGenes_server(input, output, session, shared)
+  
+  # TAB 3.2: Normalization Normalization ----
+  tabPanel_3_2_Norm_normalization_server(input, output, session, shared)
+  
+  # TAB 3.3: Normalization NormData ----
+  tabPanel_3_3_Norm_normData_server(input, output, session, shared)
+  
+  
   
   # DYANAMIC UI ----
   globalDynamics(input, output, session, shared)
