@@ -50,7 +50,7 @@ tabPanel_3_2_Norm_normalization_server <- function(input, output, session, share
       }
       tmmData <- tmmData %>%
         t() %>% # transform back to original structure
-        as.tibble()
+        as_tibble()
       
       normData <- curatedData %>%
         dplyr::select(-all_of(GOIs)) %>%
@@ -104,6 +104,8 @@ tabPanel_3_2_Norm_normalization_server <- function(input, output, session, share
       )
   })
   
+  
+  # Normalized Plot
   output$normDist <- renderPlot({
     req(shared$normData())
     

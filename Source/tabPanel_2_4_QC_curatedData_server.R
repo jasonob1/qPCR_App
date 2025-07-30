@@ -47,9 +47,9 @@ tabPanel_2_4_QC_curatedData_server <- function(input, output, session, shared){
       defaultColDef = colDef(
         style = function(value) { # to highlight NAs (No Ct) red
           if (is.na(value)) {
-            color <- "#dc3815"
+            color <- failCol
           } else {
-            color <- "#585858"
+            color <- passCol
           }
           list(color = color, fontWeight = "lighter")
         },
