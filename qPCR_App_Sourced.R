@@ -16,6 +16,7 @@ library(reactable)
 library(ggpubr)
 library(ggfortify)
 library(edgeR)
+library(EnvStats)
 
 
 # Load Source Code ----
@@ -81,7 +82,8 @@ server <- function(input, output, session){
   # TAB 3.3: Normalization NormData ----
   tabPanel_3_3_Norm_normData_server(input, output, session, shared)
   
-  
+  # TAB 4: DEG ANALYSIS ----
+  tabPanel_4_DEGs_server(input, output, session, shared)
   
   # DYANAMIC UI ----
   globalDynamics(input, output, session, shared)

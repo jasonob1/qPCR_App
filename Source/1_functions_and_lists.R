@@ -18,6 +18,14 @@ hkFactorChoices <- c(
   "dose"
 )
 
+# Fold Change Group Choices
+# hard-coded for now
+# will eventually make this dynamic
+fcFactorChoices <- c(
+  "chemical",
+  "dose"
+)
+
 
 # FUNCTIONS ----
 
